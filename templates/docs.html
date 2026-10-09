@@ -1,1 +1,178 @@
-templates/docs.html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#08090d">
+  <title>STARLIGHT // Secure Research Portal</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-star">✦</span>
+      STARLIGHT<span class="brand-dot">.</span>
+    </a>
+    <span class="status"><i></i> SYSTEM ONLINE</span>
+  </header>
+
+  <main class="layout">
+    <section class="hero">
+      <div class="eyebrow">RESEARCH DIVISION / 07</div>
+      <h1>Beyond the<br><span>visible.</span></h1>
+      <p class="hero-copy">
+        Access the STARLIGHT research network. Restricted archives
+        require elevated authorization.
+      </p>
+
+      <div class="terminal-card">
+        <div class="terminal-heading">
+          <span>NETWORK STATUS</span>
+          <span>LIVE</span>
+        </div>
+        <div class="terminal-line"><span>01</span> Authentication gateway active</div>
+        <div class="terminal-line"><span>02</span> Research archive restricted</div>
+        <div class="terminal-line"><span>03</span> Authorization level: standard</div>
+        <a class="docs-link" href="/internal-docs">
+          View internal documentation ↗
+        </a>
+      </div>
+    </section>
+
+    <section class="login-card">
+      <div class="card-symbol">✦</div>
+      <p class="eyebrow">IDENTITY VERIFICATION</p>
+      <h2>Welcome back.</h2>
+      <p class="muted">Sign in to access your research workspace.</p>
+
+      <form id="login-form">
+        <label for="username">Username</label>
+        <input id="username" name="username" autocomplete="username"
+               placeholder="Enter username" required>
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password"
+               autocomplete="current-password"
+               placeholder="Enter password" required>
+
+        <button class="primary-button" type="submit">
+          <span>Authenticate</span><span>→</span>
+        </button>
+      </form>
+
+      <div id="notice" class="notice" role="status" aria-live="polite"></div>
+
+      <div id="session-panel" class="session-panel hidden">
+        <div class="session-heading">
+          <span>SESSION ESTABLISHED</span>
+          <span class="session-indicator"></span>
+        </div>
+        <p id="profile-result" class="profile-result"></p>
+
+        <label for="token-output">Access token</label>
+        <textarea id="token-output" rows="4" readonly></textarea>
+
+        <button id="profile-button" class="secondary-button" type="button">
+          Check profile
+        </button>
+        <button id="archive-button" class="secondary-button" type="button">
+          Open restricted archive
+        </button>
+        <pre id="api-result" class="api-result hidden"></pre>
+      </div>
+
+      <div class="card-footer">
+        <span>STARLIGHT SECURITY SYSTEMS</span>
+        <span>BUILD 2.7.4</span>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>CLASSIFICATION: INTERNAL</span>
+    <span>AUTHORIZED PERSONNEL ONLY</span>
+  </footer>
+
+  <script>
+    const form = document.getElementById("login-form");
+    const notice = document.getElementById("notice");
+    const panel = document.getElementById("session-panel");
+    const tokenOutput = document.getElementById("token-output");
+    const profileResult = document.getElementById("profile-result");
+    const apiResult = document.getElementById("api-result");
+
+    let accessToken = "";
+
+    function showApiResult(data) {
+      apiResult.textContent = JSON.stringify(data, null, 2);
+      apiResult.classList.remove("hidden");
+    }
+
+    async function callApi(path) {
+      apiResult.textContent = "Requesting...";
+      apiResult.classList.remove("hidden");
+
+      try {
+        const response = await fetch(path, {
+          headers: { "Authorization": "Bearer " + accessToken }
+        });
+
+        const data = await response.json();
+        showApiResult(data);
+      } catch (error) {
+        showApiResult({ error: "Request failed. Please retry." });
+      }
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      notice.textContent = "Authenticating...";
+      notice.className = "notice";
+      panel.classList.add("hidden");
+      apiResult.classList.add("hidden");
+
+      try {
+        const response = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: document.getElementById("username").value,
+            password: document.getElementById("password").value
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          notice.textContent = data.error || "Authentication failed.";
+          notice.className = "notice error";
+          return;
+        }
+
+        accessToken = data.token;
+        tokenOutput.value = accessToken;
+        notice.textContent = "Login successful. Researcher access granted.";
+        notice.className = "notice success";
+        profileResult.textContent = "Signed in as researcher.";
+        panel.classList.remove("hidden");
+      } catch (error) {
+        notice.textContent = "Could not contact the authentication service.";
+        notice.className = "notice error";
+      }
+    });
+
+    document.getElementById("profile-button").addEventListener("click", () => {
+      callApi("/api/profile");
+    });
+
+    document.getElementById("archive-button").addEventListener("click", () => {
+      callApi("/api/archive");
+    });
+  </script>
+</body>
+</html>
+
